@@ -1,0 +1,44 @@
+---
+strategy: polling
+no_screen_padding: 'no'
+dark_mode: 'no'
+static_data: ''
+polling_verb: get
+polling_url: "{% liquid \r\n  # Get settings with defaults\r\n  assign mature_content = trmnl.plugin_settings.custom_fields_values.mature_content | default: \"true\"\r\n  assign raw_tags_string = trmnl.plugin_settings.custom_fields_values.tags | default: \"\"\r\n  assign raw_endpoints = trmnl.plugin_settings.custom_fields_values.endpoints | default: \"\"\r\n\r\n  # Clean up and validate endpoints\r\n  assign cleaned_endpoints = raw_endpoints | replace: '[', '' | replace: ']', '' | replace: '\"', '' | strip\r\n  \r\n  # Split into array\r\n  assign endpoints_array = cleaned_endpoints | split: \",\"\r\n  \r\n  # Filter out empty endpoints by building a new list\r\n  assign valid_endpoints = \"\"\r\n  for endpoint in endpoints_array\r\n    assign trimmed = endpoint | strip\r\n    if trimmed != \"\" and trimmed != blank\r\n      if valid_endpoints == \"\"\r\n        assign valid_endpoints = trimmed\r\n      else\r\n        assign valid_endpoints = valid_endpoints | append: \",\" | append: trimmed\r\n      endif\r\n    endif\r\n  endfor\r\n  \r\n  # Convert back to array\r\n  assign valid_endpoints_array = valid_endpoints | split: \",\"\r\n  \r\n  # If no valid endpoints, use default\r\n  if valid_endpoints_array.size == 0 or valid_endpoints_array[0] == \"\"\r\n    assign selected_endpoint = \"browse/dailydeviations?limit=25\"\r\n  else\r\n    # Pick random endpoint from user's selections\r\n    assign random_index = \"now\" | date: \"%s\" | modulo: valid_endpoints_array.size\r\n    assign selected_endpoint = valid_endpoints_array[random_index] | strip\r\n  endif\r\n\r\n  # Handle tag-based endpoint\r\n  if selected_endpoint contains \"browse/tags\"\r\n    # Build list of non-empty tags\r\n    assign raw_tags_array = raw_tags_string | split: \",\"\r\n    assign valid_tags = \"\"\r\n    \r\n    for tag in raw_tags_array\r\n      assign trimmed_tag = tag | strip\r\n      if trimmed_tag != \"\" and trimmed_tag != blank\r\n        if valid_tags == \"\"\r\n          assign valid_tags = trimmed_tag\r\n        else\r\n          assign valid_tags = valid_tags | append: \",\" | append: trimmed_tag\r\n        endif\r\n      endif\r\n    endfor\r\n    \r\n    # Convert to array\r\n    assign valid_tags_array = valid_tags | split: \",\"\r\n    \r\n    if valid_tags_array.size > 0 and valid_tags_array[0] != \"\"\r\n      # Pick random tag\r\n      assign random_tag_index = \"now\" | date: \"%s\" | modulo: valid_tags_array.size\r\n      assign selected_tag = valid_tags_array[random_tag_index] | strip\r\n      \r\n      # URI encode the tag\r\n      assign encoded_tag = selected_tag | url_encode\r\n      \r\n      # Build the endpoint with encoded tag\r\n      assign selected_endpoint = \"browse/tags?limit=25&tag=\" | append: encoded_tag\r\n    else\r\n      # No tags available, fall back to daily deviations\r\n      assign selected_endpoint = \"browse/dailydeviations?limit=25\"\r\n    endif\r\n  endif\r\n\r\n  # Build full URL\r\n  assign base_url = \"https://www.deviantart.com/api/v1/oauth2/\"\r\n  assign polling_url = base_url | append: selected_endpoint\r\n  \r\n  # Add mature_content parameter (handle if endpoint already has parameters)\r\n  if selected_endpoint contains \"?\"\r\n    assign polling_url = polling_url | append: \"&mature_content=\" | append: mature_content\r\n  else\r\n    assign polling_url = polling_url | append: \"?mature_content=\" | append: mature_content\r\n  endif\r\n%}\r\n\r\n{{ polling_url }}"
+polling_headers: Authorization=Bearer {{ oauth_access_token }}&Content-Type=application/json
+polling_body: ''
+id: 246026
+custom_fields:
+- keyname: author_bio
+  field_type: author_bio
+  name: About This Plugin
+  description: |
+    Display personalised art from <a href="https://www.deviantart.com/">DeviantArt</a> on your TRMNL device.<br /><br />
+
+    <strong>Requires OAuth</strong>
+  category: art,images
+  github_url: https://github.com/ExcuseMi/trmnl-deviantart-plugin
+  learn_more_url: https://www.deviantart.com/
+- keyname: endpoints
+  field_type: select
+  name: Feed
+  help_text: Use <kbd>⌘</kbd>+<kbd>click</kbd> or <kbd>ctrl</kbd>+<kbd>click</kbd> to select and deselect multiple options.
+  options:
+  - Daily Deviations: browse/dailydeviations?limit=25
+  - Deviants You Watch: browse/deviantsyouwatch?limit=25
+  - Home Feed: browse/home?limit=25
+  - Tags: browse/tags/limit=25&tag=
+  multiple: true
+- keyname: tags
+  field_type: multi_string
+  name: Tags
+  description: Choose one or more tags to display.<br />DeviantArt has user defined tags, so there's not set list of tags.
+  help_text: The given tags will only be shown when the Feed field includes Tags.
+  placeholder: digitalart
+- keyname: mature_content
+  field_type: boolean
+  name: Mature Content
+  description: If the feed supports mature content, this will allow it.
+  optional: true
+name: DeviantArt
+refresh_interval: 15
