@@ -1,11 +1,9 @@
 {% template main %}
 
 {% liquid 
-# Get a random item from the data array
-assign random_index = "now" | date: "%s" | modulo: data.size
-assign item = data[random_index]
-%}
-
+assign salt = view | plus:0 | times: 17
+assign random_index = "now" | date: "%s%N" | times: 1 | plus: salt | modulo: data.size
+assign item = data[random_index]%}
 <div id="image-container" class="layout layout--stretch layout--center gap--none m--0 p--0">
   {% if item and item.image_url %}
   <img class="image image--contain image-dither rounded w--auto h--auto w--max-full h--max-full" src="{{item.image_url}}" />
